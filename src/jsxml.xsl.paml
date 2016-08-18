@@ -1,0 +1,772 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl::stylesheet(version="1.0",xmlns::xsl="http://www.w3.org/1999/XSL/Transform",xmlns::jsx="https://github.com/sebastien/jsxml")
+
+	# FIXME: The long concatenation of empty arrays. This is major for public release.
+	# ("li", {/*jsx:map=/state.items*/},[].concat([_t_item(_)]).concat([].concat(_list()).concat([])})).concat([])])]));
+	# TODO: Rewrite documentation for texto and add custom tags for dynamic
+	# expansion/compilation of examples.
+
+	# {{{
+	#
+	# JSXML: Generate code for React, D3, etc. from XML
+	# =================================================
+	#
+	# --
+	# project:   JSXML
+	# url:       https://github.com/sebastien/jsxml
+	# license:   MIT
+	# version:   0.0.0
+	# --
+	#
+	# JSXML is a set of XSL stylesheets that transform XML into
+	# JavaScript code equivalent to JSX. Unlike JSX, JSXML is easy to parse
+	# (it uses XML) and can easily be re-targetted to different rendering
+	# engines (React, Inferno, D3, etc‥).
+	#
+	# Quick start
+	# ===========
+	#
+	# One of the main drawback of JSX is that it introduces a tigh coupling
+	# between the JavaScript (the controller) and the HTML code (the view).
+	#
+	# The JSX XSLT Templates allows you to write XML documents that are automatically
+	# rendered to an UMD JavaScript module definining the JSX equivalent
+	# (using `React.createElement`).
+	#
+	# The result is that the view can be written predominently in XML/XHTML
+	# and can be dynamically integrated with the controller at runtime using
+	# dynamic module loading.
+	#
+	# The JSX XSLT Template defines the following elements:
+	#
+	# Overview
+	# ========
+	# 
+	# A complete JSXML example looks like that
+	#
+	# ```xml{4,6,7,9,12,13}
+	# <?xml version="1.0" encoding="UTF-8"?>
+	# <jsx:Component(xmlns::jsx="https://github.com/sebastien/jsxml",xmlns::on="https://github.com/sebastien/jsxml/actions")
+	#    <h1>To do list: 
+	#        <jsx:value="this.state.items.length" /> items
+	#    <h1>
+	#    <ul jsx:map="this.state.items">
+	#       <jsx:apply template="item" />
+	#    </ul>
+	#    <jsx:Template name="item">
+	#       <li>
+	#         <span class="label">item.name</span>
+	#         <span class="priority">item.priority</span>
+	#       <li>
+	#    </jsx:template>
+	# </jsx:Component>
+	# ```
+	#
+	# Elements
+	# --------
+	#
+	# 1. Root
+	# -------
+	#
+	# [`<jsx:Component>`](#jsx:Component)::
+	#     declares a component. This is the *root node* of JSXML.
+	#
+	# 2. Node content
+	# ---------------
+	#
+	# [`<jsx:value>`](#jsx:value)::
+	#     evaluates a (JS) expression and returns its content
+	#
+	# [`<jsx:attribute>`](#jsx:attribute)::
+	#     Sets an attribute on the current node.
+	#
+	# [`<jsx:map>`](#jsx:map)::
+	#     Iterates over the given items
+	#
+	# [`<jsx:T>`](#jsx:T)::
+	#     dynamically translates the given string
+	#
+	# 3. Control flow
+	# ---------------
+	#
+	# [`<jsx:if>`](#jsx:if)::
+	#     Applies the current node only if the condition is true
+	#
+	# [`<jsx:else>`](#jsx:else)::
+	#     Applies the current node if all the other conditions have failed
+	#
+	# [`<jsx:choose>`](#jsx:map)::
+	#     Wraps a series of `<jsx:if>`‥<jsx:else>. 
+	#
+	# 4. Templates
+	# ------------
+	#
+	# [`<jsx:Template>`](#jsx:Template)::
+	#     declares a new re-usable snippet within a *component*.
+	#
+	# [`<jsx:apply>`](#jsx:apply)::
+	#     applies a `jsx:Template` to the current node.
+	# 
+	# 5. Modules
+	# ----------
+	#
+	# [`<jsx:import>`](#jsx:import)::
+	#     imports an external component so that it can be referenced
+	#     using `<jsx:component>`
+	#
+	# [`<jsx:component>`](#jsx:component)::
+	#     instanciates an imported component.
+	#
+	# Attributes
+	# ----------
+	#
+	# [`@jsx:map`](#@jsx:map)::
+	#		Maps the selected items to the contents of the node. Works for both
+	#		arrays and objects.
+	#
+	# [`@jsx:value`](#@jsx:value)::
+	#		replaces the element's content with the given value
+	#	
+	# [`@jsx:if`](#@jsx:if)::
+	#		Only add the node if the given condition is valid.
+	#
+	# ### Events
+	#
+	# [`@on:*`](#@on:event)::
+	#		registers a callback to handle the given event.
+	#
+	# ### References
+	#
+	# [`@jsx:as`](#@jsx:as)/`jsx:ref`::
+	#		creates a reference (accessible in the underlying JavaScript)
+	#   to the current rendered node.
+	#
+	# }}}
+
+	<xsl::output(method=text,encoding=UTF-8,indent=no)
+
+	# Yes, you would not believe this was not part of the original spec
+	# <http://stackoverflow.com/questions/9611569/xsl-how-do-you-capitalize-first-letter>
+	<xsl::variable(name="LOWERCASE",select="'abcdefghijklmnopqrstuvwxyz'")
+	<xsl::variable(name="UPPERCASE",select="'ABCDEFGHIJKLMNOPQRSTUVWXYZ'")
+
+	# -------------------------------------------------------------------------
+	#
+	# JSX SPECIFIC TAGS
+	#
+	# -------------------------------------------------------------------------
+
+	# {{{
+	# 
+	# The JSXML language
+	# ==================
+	#
+	# }}}
+
+	# ==========================================================================
+	# <Component>
+	# ==========================================================================
+
+	# {{{
+	# [Component]`<jsx:Component name="NAME">`::
+	# 
+	# 	Declares a new JSX component
+	#
+	# 	- `name` is the variable name to which the created `ReactElement` factory will
+	# 	  be bound. If not specified, it will default to `View`.
+	#
+	# 	```html
+	# 	<jsx:Component name="Button">
+	# 	   <button jsx:text="data.name">Untitled button</button>
+	# 	</jsx:Component>
+	# 	```
+	#
+	# }}}
+	
+	<xsl::template(match="jsx:Component",name="component")
+		<xsl::param(name=prefix,select="'exports.'")
+		<xsl::param(name=postamble)
+			<xsl::call-template(name=umd-postamble)
+		<xsl::param(name=preamble)
+			<xsl::call-template(name=umd-preamble)
+		<xsl::param(name=helpers)
+			<xsl::call-template(name=helpers)
+		# PREAMBLE
+		# TODO: Take a module-type parameter
+		<xsl::value-of(select="$preamble")
+		<xsl::text:&#x000A;>
+		# COMPONENT
+		<xsl::call-template(name=comment)
+			<xsl::with-param(name=text,select="concat('View', @name)")
+		<xsl::value-of(select="$prefix")
+		<xsl::choose
+			<xsl::when(test="@name")
+				<xsl::value-of(select="@name")
+			<xsl::otherwise
+				<xsl::text:View>
+		<xsl::text:=function(data,component){>
+		<xsl::text:let state=data;>
+		<xsl::apply-templates(select="jsx:Template")
+		# We filter out the content we don't want (Templates, imports)
+		<xsl::variable(name=content,select="*[not(self::jsx:Template) and not(self::jsx:import)]")
+		<xsl::choose
+			<xsl::when(test="count($content)=0")
+				# Element with no content
+				<xsl::text(console.error("Component has no children"))
+			<xsl::when(test="count($content)=1")
+				# Element with 1 child
+				<xsl::text:return (>
+				<xsl::apply-templates(select=$content)
+				<xsl::text:&#x000A;>
+				<xsl::text:)};>
+			<xsl::otherwise
+				# Element with many children
+				<xsl::text:return (React.createElement("div",{"className":"component"},>
+				<xsl::for-each(select="$content")
+					<xsl::apply-templates(select=".")
+					<xsl::if(test="position()!=last()")
+						<xsl::text:,>
+				<xsl::text:&#x000A;>
+				<xsl::text:))};>
+
+
+		# POSTAMBLE
+		# TODO: Take a module-type parameter
+		<xsl::text:&#x000A;>
+		<xsl::text:&#x000A;>
+		<xsl::value-of(select="$postamble")
+
+	# ==========================================================================
+	# <jsx:Template>
+	# ==========================================================================
+
+	# {{{
+	# ### <a name="Template"></a>`<jsx:Template name="NAME" param="NAME>`
+	# 
+	# Defines a named template that can be referenced with [<jsx:apply>](#apply)
+	#
+	# - `name` is the name of the template, referenced in `apply`
+	# - *`param`*, the optional parameter name for the given data (`_` by default) 
+	#
+	# ```html
+	# <ul>
+	#   <li jsx:map="state.items>
+	#     <!-- This is where the template is REFERENCED -->
+	#     <jsx:apply template="item" />
+	#   </li>
+	# </ul>
+	# <!-- This is where the template is DECLARED -->
+	# <jsx:Template name="item" param="item">
+	#    <span jsx:text="item.name" />
+	#    <span jsx:text="item.value />
+	# </jsx:Template>
+	# ```
+	# }}}
+	<xsl::template(match="jsx:Template")
+		<xsl::call-template(name=comment)
+			<xsl::with-param(name=text,select="concat('Template ', @name)")
+		<xsl::text:var _t_>
+		<xsl::variable(name=param)
+			<xsl::choose
+				<xsl::when(test=@param)
+					<xsl::value-of(select="@param")
+				<xsl::otherwise
+					<xsl::value-of(select="'_'")
+		<xsl::value-of(select="@name")
+		<xsl::text:=function(>
+		<xsl::value-of(select="$param")
+		<xsl::text:){return (>
+		<xsl::call-template(name=element-children)
+		<xsl::text:)};>
+		<xsl::text:&#x000A;>
+
+	# ==========================================================================
+	# <jsx:value>
+	# ==========================================================================
+
+	# {{{
+	# ### <a name="jsx:value"></a>`<jsx:value>EXPRESSION</jsx:value>`
+	# 
+	# Evaluates the given `EXPRESSION` and adds its result to the content
+	# of the current node (the parent of the `jsx:value` node).
+	#
+	# }}}
+	
+	<xsl::template(match="jsx:value")
+		# NOTE: It would be much easier to use the spread syntax [...(EXPRESSION)]
+		# We warp the CODE into a closure
+		<xsl::text:(>
+		<xsl::value-of(select="normalize-space(.)")
+		<xsl::text:)>
+
+	# ==========================================================================
+	# <JSX:T>
+	# ==========================================================================
+
+	<xsl::template(match="jsx:T")
+		# TODO: Implement me
+
+	# ==========================================================================
+	# <jsx:component>
+	# ==========================================================================
+
+	# {{{
+	# ### <a name="component"></a>`<jsx:component jsx:class="CLASSNAME" js:ref="REF" data="EXPRESSION" options="EXPRESSION">NODES</jsx:component>`
+	# 
+	# TODO
+	# }}}
+	
+	<xsl::template(match="jsx:component")
+		# NOTE: It would be much easier to use the spread syntax [...(EXPRESSION)]
+		# We warp the CODE into a closure
+		<xsl::call-template(name="create-element")
+			<xsl::with-param(name="name")
+				<xsl::value-of(select="@jsx:class")
+
+	# ==========================================================================
+	# <jsx:apply>
+	# ==========================================================================
+
+	# {{{
+	# <a name="apply"></a>`<jsx:apply template="NAME">`::
+	# 
+	#    Applies the template with the given name. This requires
+	#    a previously defined `<jsx:Template name=NAME>` tag in
+	#    the document.
+	#
+	#    ```html
+	#       <jsx:apply template="placeholder />
+	#       <jsx:Template name="placeholder">Lorem ipsum dolor sit amet‥</jsx:Template>
+	#    ```
+	#
+	#    Note that you can use the [`jsx:map`](#jsx-map) attribute in
+	#    the `jsx:apply` element.
+	#
+	# }}}
+	# TODO: Add argument attribute?
+	<xsl::template(match="jsx:apply",name="jsx-apply")
+		<xsl::variable(name=template,select="@template")
+		<xsl::variable(name=argument,select="'_'")
+		<xsl::choose
+			<xsl::when(test="//jsx:Template[@name=$template]")
+				<xsl::text:(_t_>
+				<xsl::value-of(select="$template")
+				<xsl::text:(>
+				<xsl::value-of(select="$argument")
+				<xsl::text:))>
+			<xsl::otherwise
+				<xsl::text:(console.log.error("Missing &lt;jsx:Template name='>
+				<xsl::value-of(select="$template")
+				<xsl::text:'&gt;"))>
+					
+	# ==========================================================================
+	# JSX IMPORT
+	# ==========================================================================
+	# We do nothing here
+
+	<xsl::template(match="jsx:import")
+
+	# ==========================================================================
+	# jsx:*
+	# ==========================================================================
+	
+	<xsl::template(match="jsx:*")
+		<xsl::text:(console.error("&lt;>
+		<xsl::value-of(select="name()")
+		<xsl::text:&gt;&#x0020;element not supported"))>
+
+	# ==========================================================================
+	# @jsx:value
+	# ==========================================================================
+
+	# {{{
+	# <a name="value"></a>`jsx:value="EXPRESSION"`::
+	# 
+	#      Indicates that the content of the current element will be replaced by the
+	#      the value of the given `EXPRESSION` (in JavaScript)
+	#
+	#      When the expression evaluates to either to `null`, `false` or `undefined`,
+	#      then the default value will be used.
+	#
+	#      ```html
+	#      <div class="person">
+	#          <!-- The name will be replaced by `Unnamed person` if missing -->
+	#          <span class="name" jsx:value="_.name">Unnamed person</span>
+	#          <!-- while the age will be empty if the value if missing -->
+	#          <span class="age"  jsx:value="_.age"></span>
+	#      </div>
+	#      ```
+	#
+	# }}}
+	<xsl::template(match="*[@jsx:value]")
+		<xsl::choose
+			<xsl::when(test="*")
+				<xsl::text:(>
+				<xsl::value-of(select="@jsx:text")
+				<xsl::text:) ? (>
+				<xsl::value-of(select="@jsx:text")
+				<xsl::text:) : (>
+					<xsl::apply-templates(select="*")
+				<xsl::text:)>
+			<xsl::otherwise
+				<xsl::value-of(select="@jsx:text")
+
+	# ==========================================================================
+	# @jsx:map
+	# ==========================================================================
+	# {{{
+	# <a name="map"></a>`jsx:map="EXPRESSION" jsx:with="NAME"::
+	# 
+	#      The current node will be repeated as many times as there are
+	#      elements in the array returned by `EXPRESSION`. 
+	#
+	#      If `jsx:with` is specified, then the variable with the given `NAME`
+	#      will be used for iteration, otherwise it defaults to `_`.
+
+	#
+	#      ```html
+	#      <ul class="people">
+	#          <li class="person" jsx:map="data.people" jsx::with="person">
+	#            <!-- The name will be replaced by `Unnamed person` if missing -->
+	#            <span class="name" jsx:value="person.name">Unnamed person</span>
+	#            <!-- while the age will be empty if the value if missing -->
+	#            <span class="age"  jsx:value="person.age"></span>
+	#          </li>
+	#      </div>
+	#      ```
+	#
+	# }}}
+
+	<xsl::template(match="*[@jsx:map]")
+		<xsl::text:(>
+		<xsl::value-of(select="@jsx:map")
+		<xsl::text:||new Array(0))>
+		<xsl::text:.map(function(>
+		# We extract the jsx:with value
+		<xsl::choose
+			<xsl::when(test="@jsx:with")
+				<xsl::value-of(select=@jsx:with)
+			<xsl::otherwise
+				<xsl::text:_>
+		<xsl::text:,i,l){return>
+		<xsl::text:&#x0020;(>
+		# We test the type of the element
+		<xsl::choose
+			# We support jsx:apply
+			<xsl::when(test="self::jsx:apply")
+				<xsl::call-template(name="jsx-apply")
+			# But not other types of jsx: tags
+			<xsl::when(test="self::jsx:*")
+				<xsl::text:console.error("jsx:map applied to unsupported jsx:>
+				<xsl::value-of(select="name()")
+				<xsl::text: element")>
+			# Otherwise it's a regular element
+			<xsl::otherwise
+				<xsl::call-template(name="create-element")
+		<xsl::text:);})>
+
+	# -------------------------------------------------------------------------
+	#
+	# REGULAR ELEMENTS
+	#
+	# -------------------------------------------------------------------------
+
+	<xsl::template(match="*",name="create-element")
+	# Regular elements have no `jsx:` attribute at all, or if they
+	# have, these attributes will be ignored.
+		<xsl::param(name="name")
+			<xsl::text:">
+			<xsl::value-of(select="name()")
+			<xsl::text:">
+		<xsl::text:&#x000A;>
+		<xsl::text:React.createElement(>
+		# 1) ELEMENT NAME
+		<xsl::value-of(select="$name")
+		<xsl::text:,>
+		# 2) ATTRIBUTE VALUES
+		# We only zap a few JSX attributes
+		# TODO: This won't scale well... we should use variables instead
+		<xsl::variable(name="attributes",select="@*[namespace-uri()!='https://github.com/sebastien/jsxml']|@jsx:as|@jsx:ref|@jsx:value")
+		<xsl::choose
+			<xsl::when(test="$attributes")
+				# FIXME: Should not need the {
+				<xsl::text:{>
+				<xsl::for-each(select="$attributes")
+					<xsl::apply-templates(select=".")
+					<xsl::if(test="position()!=last()")
+						<xsl::text:,>
+				<xsl::text:}>
+			<xsl::otherwise
+				<xsl::text:null>
+		# NOTE: We have a leading paren to support concatenating of children
+		<xsl::text:>
+		# 3) CHILD NODES
+		<xsl::variable(name="children",select="*[not(self::jsx:import)]|text()[string-length(normalize-space(.))>0]")
+		<xsl::if(test="count($children)>0")
+			<xsl::text:,>
+			<xsl::call-template(name="element-children")
+				<xsl::with-param(name=children,select="$children")
+		<xsl::text:)>
+
+	# ==========================================================================
+	# ELEMENT CHILDREN
+	# ==========================================================================
+
+	# TODO: This one should be rethough to solve the concat issue
+	<xsl::template(name="element-children")
+		# We select all child elements and non-empty text nodes
+		<xsl::param(name="children",select="*[not(self::jsx:import)]|text()[string-length(normalize-space(.))>0]")
+		<xsl::for-each(select="$children")
+			<xsl::choose
+				# == JSX NODE =========================================================
+				<xsl::when(test="self::jsx:*")
+					<xsl::apply-templates(select=".")
+				# == JSX ATTR =========================================================
+				<xsl::when(test="@jsx:*")
+					<xsl::apply-templates(select=".")
+				# == TEXT NODE ========================================================
+				<xsl::when(test="self::text()")
+					<xsl::call-template(name="string")
+				# == ELEMENT  =========================================================
+				<xsl::otherwise
+					<xsl::apply-templates(select=".")
+			# SUFFIX
+			<xsl::if(test="position()!=last()")
+					<xsl::text:, >
+
+	# NOTE:Disabled for now
+	# <xsl::template(name=result-type)
+	# # A utility template that returns the type of value returned by the
+	# # given node. This is helpful when concatenating child nodes.
+	# 	<xsl::choose
+	# 		# NOTE: We do per-tag dispatching, for modularity
+	# 		<xsl::when(test="self::jsx:value")
+	# 			<xsl::text:list>
+	# 		<xsl::when(test="self::jsx:apply")
+	# 			<xsl::text:list>
+	# 		<xsl::when(test="self::jsx:*")
+	# 			<xsl::text:list>
+	# 		<xsl::when(test="self::text()")
+	# 			<xsl::text:text>
+	# 		<xsl::otherwise
+	# 			<xsl::text:value>
+
+	# ---------------------------------------------------------------------------
+	#
+	# HELPERS
+	#
+	# ---------------------------------------------------------------------------
+
+	# ==========================================================================
+	# TEXT
+	# ==========================================================================
+
+	<xsl::template(match="text( )",name="string")
+		<xsl::text:">
+		# FIXME: The `normalize-space` is not ideal as it strips stuff out.
+		# What we really want to do is to escape newlines into something else.
+		<xsl::variable(name="text")
+			<xsl::value-of(select=".")
+		# We normalize the string but preserve trailing spaces.
+		<xsl::value-of(select="normalize-space($text)")
+		# NOTE: An alternative would be to compare the last character of the text
+		# with the normalized one, it case it's not a space
+		<xsl::if(test="substring(.,string-length(.))=' '")
+			<xsl::text: >
+		<xsl::text:">
+
+	# ==========================================================================
+	# ATTRIBUTES CATCHALLS
+	# ==========================================================================
+
+	<xsl::template(match="@jsx:*")
+		# JSX Attributes are output inbetween comments
+		<xsl::text:/*>
+		<xsl::value-of(select="name()")
+		<xsl::text:=>
+		<xsl::value-of(select=".")
+		<xsl::text:*/null>
+
+	# TODO: document
+	<xsl::template(match="@jsx:as|@jsx:ref")
+		# jsx@as (jsx@ref for React compat)
+		<xsl::text:"ref":>
+		# TODO: These should be an expression, not a string
+		<xsl::text:">
+		<xsl::value-of(select=".")
+		<xsl::text:">
+
+	<xsl::template(match="@jsx:value")
+		# jsx@value
+		<xsl::text:"value":(>
+		<xsl::value-of(select=".")
+		<xsl::text:)>
+
+	<xsl::template(match="@*")
+		# Generic attributes are output as-is
+		<xsl::text:">
+		<xsl::value-of(select="local-name()")
+		<xsl::text:":>
+		<xsl::variable(name="text")
+			<xsl::value-of(select=".")
+		<xsl::choose
+			<xsl::when(test="substring($text,1,1)='{' and substring($text,string-length(.),1)='}'")
+				<xsl::text:(>
+				<xsl::value-of(select="substring($text,2,string-length(.)-2)")
+				<xsl::text:)>
+			<xsl::otherwise
+				<xsl::text:">
+				<xsl::value-of(select=".")
+				<xsl::text:">
+
+	<xsl::template(match="@*[name()='class']")
+		# class attributes are renamed to className
+		<xsl::text:">
+		<xsl::text:className>
+		<xsl::text:":">
+		<xsl::value-of(select=".")
+		<xsl::text:">
+
+	<xsl::template(match="@*[substring-before(name(),':')='on']")
+		# on: prefixed attributes are capitalized
+		<xsl::text:"on>
+		<xsl::call-template(name=capitalize)
+			<xsl::with-param(name="text",select="local-name()")
+		<xsl::text:":>
+		<xsl::value-of(select=".")
+
+	# ==========================================================================
+	# COMMENTS
+	# ==========================================================================
+
+	<xsl::template(name=comment)
+		<xsl::param(name=text)
+		<xsl::text:&#x000A;>
+		<xsl::text:/* >
+		<xsl::value-of(select="$text")
+		<xsl::text: */>
+		<xsl::text:&#x000A;>
+
+	# ==========================================================================
+	# STRING
+	# ==========================================================================
+
+	<xsl::template(name=capitalize)
+		<xsl::param(name=text)
+		<xsl::variable(name="head",select="translate(substring($text,1,1), $LOWERCASE, $UPPERCASE)")
+		<xsl::variable(name="tail",select="substring($text,2)")
+		<xsl::value-of(select="concat($head,$tail)")
+
+	# ==========================================================================
+	# PREAMBLE
+	# ==========================================================================
+
+	<xsl::template(name=umd-preamble)
+		<xsl::variable(name=imports)
+			<xsl::for-each(select="//jsx:import")
+				<xsl::text:,">
+				<xsl::value-of(select=@from)
+				<xsl::text:">
+		(function (global, factory) {
+		if (typeof define === "function" &amp;&amp; define.amd) {
+		define(["exports", "react"
+		<xsl::value-of(select="$imports")
+		], factory);
+		} else if (typeof exports !== "undefined") {
+		factory(exports, require("react"
+		<xsl::value-of(select="$imports")
+		));
+		} else {
+		var mod = {
+		exports: {}
+		};
+		factory(mod.exports, global.uis);
+		global.componentEs6 = mod.exports;
+		}
+		})(this, function (exports, react
+		<xsl::for-each(select="//jsx:import")
+			<xsl::choose
+				<xsl::when(test=@from)
+					<xsl::text:, >
+					<xsl::value-of(select="translate(@from,'.','_')")
+				<xsl::otherwise
+					<xsl::text:console.error("jsx:import is missing its from='MODULE' parameter")
+		) {
+		<xsl::text:&#x000A;>
+		"use strict"
+		<xsl::text:&#x000A;>
+		Object.defineProperty(exports, "__esModule", {value:true});
+		var React  = react;
+		/* Imported components */
+		<xsl::for-each(select="//jsx:import")
+			<xsl::text:var >
+			<xsl::choose
+				<xsl::when(test=@as)
+					<xsl::value-of(select="@as")
+				<xsl::when(test=@name)
+					<xsl::value-of(select="@name")
+				<xsl::otherwise
+					<xsl::text:(console.error("jsx:import tag is missing the name='symbol' attribute"))
+			<xsl::text:=>
+			<xsl::choose
+				<xsl::when(test="@from")
+					<xsl::value-of(select="translate(@from,'.','_')")
+				<xsl::otherwise
+					<xsl::text:(console.error("jsx:import tags is missing the from='module' attribute"))
+			<xsl::choose
+				<xsl::when(test=@name)
+					<xsl::text:.>
+					<xsl::value-of(select="@name")
+				<xsl::otherwise
+					<xsl::text:(console.error("jsx:import tag is missing the name='symbol' attribute"))
+			<xsl::text:;>
+
+	<xsl::template(name=helpers)
+			# The empty list singleton, frozen for safety
+			var _empty = Object.freeze([]);
+			# Determines the type of value
+			var _type  = function(v){
+			if      (v === null)               {return 0}
+			else if (v ==  [])                 {return 0}
+			else if (!v)                       {return 0}
+			else if (v.length== 0)             {return 0}
+			else if (v === true)               {return 1}
+			else if (typeof(v) === "number")   {return 'n'}
+			else if (typeof(v) === "string")   {return 's'}
+			else if (v instanceof Array)       {return 'a'}
+			else if (v instanceof Object)      {return Object.getOwnPropertyNames(v).length > 0 ? 'o' : 0}
+			else                               {return -1}
+			};
+			# Flattens into a list
+			var _flatten = function(){
+				var r = [];
+				for (var i=0;i&lt;arguments.length;i++) {
+					var v=arguments[i];
+					if (v instanceof Array) {r=r.concat(v)}
+					else {r.push(v)}
+				}
+				return r;
+			};
+			# Enures that the given value is a list (that can be concatenated)
+			var _list  = function(v){
+				switch(_type(v)){
+					case 'n':
+					case 's':
+						return [v];
+					case 'a':
+						return v;
+					case 'o':
+						return Object.getOwnPropertyNames(v).map(function(k){return v[k]});
+					default:
+						return _empty;
+				}
+			};
+
+	# ==========================================================================
+	# POSTAMBLE
+	# ==========================================================================
+
+	<xsl::template(name=umd-postamble)
+		});
+
+# EOF - vim: ts=2 sw=2
