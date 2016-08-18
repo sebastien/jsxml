@@ -8,8 +8,8 @@
 
 	# {{{
 	#
-	# JSXML: Generate code for React, D3, etc. from XML
-	# =================================================
+	# JSXML: Generate React render code from XML
+	# ==========================================
 	#
 	# --
 	# project:   JSXML
@@ -23,26 +23,60 @@
 	# (it uses XML) and can easily be re-targetted to different rendering
 	# engines (React, Inferno, D3, etc‥).
 	#
-	# Quick start
-	# ===========
 	#
 	# One of the main drawback of JSX is that it introduces a tigh coupling
-	# between the JavaScript (the controller) and the HTML code (the view).
+	# between the JavaScript (the controller) and the HTML code (the view) by
+	# enourage you to mix view code within controller code.
 	#
 	# The JSX XSLT Templates allows you to write XML documents that are automatically
 	# rendered to an UMD JavaScript module definining the JSX equivalent
-	# (using `React.createElement`).
+	# (using `React.createElement`) that can be readily imported as view.
 	#
 	# The result is that the view can be written predominently in XML/XHTML
 	# and can be dynamically integrated with the controller at runtime using
 	# dynamic module loading.
 	#
-	# The JSX XSLT Template defines the following elements:
 	#
+	# Quick start
+	# ===========
+	#
+	# Create a file named `view.xml`
+	#
+	# ```
+	# <?xml version="1.0" encoding="UTF-8"?>
+	# <?xml-stylesheet type="text/xsl" media="screen" href="https://cdn.rawgit.com/sebastien/jsxml/master/dist/jsxml.xsl"?>
+	# <jsx:Component(xmlns::jsx="https://github.com/sebastien/jsxml",xmlns::on="https://github.com/sebastien/jsxml/actions")
+	#	   Hello, world!
+	# </jsx:Component>
+	# ```
+	#
+	# Now open this file using your browser, and you should see the following
+	# code:
+	# 
+	# If you'd like to convert the XML file through your command line, make
+	# sure you have `xsltproc` and `curl` installed and do:
+	#
+	# ```bash
+	# curl 'https://cdn.rawgit.com/sebastien/jsxml/master/dist/jsxml.xsl' > jsxml.xsl
+	# xsltproc jsxml.xsl view.xml > view.js
+	# ```
+	#
+	# Now you can directly import the view in your React component:
+	#
+	# ```javascript{1,6}
+	# import {View} from "./view.js";
+	# import {ReactComponent} from "react";
+	#
+	# export class Component extends ReactComponent {
+	#	    render(){
+	#	       return View(this.state, this);
+	#	    }
+	# }
+	# ```
 	# Overview
 	# ========
 	# 
-	# A complete JSXML example looks like that
+	# A complete JSXML example looks like that:
 	#
 	# ```xml{4,6,7,9,12,13}
 	# <?xml version="1.0" encoding="UTF-8"?>
@@ -62,84 +96,95 @@
 	# </jsx:Component>
 	# ```
 	#
-	# Elements
-	# --------
+	# Note how HTML tags are not
+	# prefixed by any namespace while JSXML directives are within the `jsxml` namespace.
+	#
+	# JSX Elements in a nutshell
+	# --------------------------
+	#
+	# 0. Namespaces
+	# ------------
+	#
+	# - **jsxml**:   <https://github.com/sebastien/jsxml> -- base namespace
+	# - **on**:      <https://github.com/sebastien/jsxml/extra/on> -- used for event handlers
+	# # - **actions**: <https://github.com/sebastien/jsxml/extra/actions> -- use
 	#
 	# 1. Root
 	# -------
 	#
-	# [`<jsx:Component>`](#jsx:Component)::
-	#     declares a component. This is the *root node* of JSXML.
+	# - [`<jsx:Component>CONTENT‥`](#jsx:Component)
+	#   declares a component. This is the *root node* of JSXML.
 	#
 	# 2. Node content
 	# ---------------
 	#
-	# [`<jsx:value>`](#jsx:value)::
-	#     evaluates a (JS) expression and returns its content
+	# - [`<jsx:value>`](#jsx:value)
+	#   evaluates a (JS) expression and returns its content
 	#
-	# [`<jsx:attribute>`](#jsx:attribute)::
+	# - [`<jsx:attribute name=>`](#jsx:attribute)
 	#     Sets an attribute on the current node.
 	#
-	# [`<jsx:map>`](#jsx:map)::
-	#     Iterates over the given items
+	# - [`<jsx:map value= with=>`](#jsx:map)
+	#     Iterates over the given `value`
 	#
-	# [`<jsx:T>`](#jsx:T)::
-	#     dynamically translates the given string
+	# - [`<jsx:T>`](#jsx:T)
+	#     dynamically translates the given string through the JavaScript
+	#     defined `T` function.
 	#
 	# 3. Control flow
 	# ---------------
 	#
-	# [`<jsx:if>`](#jsx:if)::
+	# - [`<jsx:if test=>`](#jsx:if)
 	#     Applies the current node only if the condition is true
 	#
-	# [`<jsx:else>`](#jsx:else)::
-	#     Applies the current node if all the other conditions have failed
+	# - [`<jsx:elif test=>`](#jsx:if)
+	#     Applies a consecutive test right after an `jsx:if>
 	#
-	# [`<jsx:choose>`](#jsx:map)::
-	#     Wraps a series of `<jsx:if>`‥<jsx:else>. 
+	# - [`<jsx:else>`](#jsx:else)
+	#     Applies the current node if all the other conditions have failed
 	#
 	# 4. Templates
 	# ------------
 	#
-	# [`<jsx:Template>`](#jsx:Template)::
+	# - [`<jsx:Template name=>`](#jsx:Template)
 	#     declares a new re-usable snippet within a *component*.
 	#
-	# [`<jsx:apply>`](#jsx:apply)::
-	#     applies a `jsx:Template` to the current node.
+	# - [`<jsx:apply template jsx:map= jsx:with=>`](#jsx:apply)
+	#     applies a `jsx:Template` to the current node., optionally
+	#     mapping it to the given name.
 	# 
 	# 5. Modules
 	# ----------
 	#
-	# [`<jsx:import>`](#jsx:import)::
+	# - [`<jsx:import value from as>`](#jsx:import)
 	#     imports an external component so that it can be referenced
 	#     using `<jsx:component>`
 	#
-	# [`<jsx:component>`](#jsx:component)::
+	# - [`<jsx:component class>`](#jsx:component)
 	#     instanciates an imported component.
 	#
-	# Attributes
-	# ----------
+	# JSXML Attributes
+	# -----------------
 	#
-	# [`@jsx:map`](#@jsx:map)::
+	# - [`@jsx:map`+`@jsx:with`](#@jsx:map)
 	#		Maps the selected items to the contents of the node. Works for both
 	#		arrays and objects.
 	#
-	# [`@jsx:value`](#@jsx:value)::
+	# - [`@jsx:value`](#@jsx:value)
 	#		replaces the element's content with the given value
 	#	
-	# [`@jsx:if`](#@jsx:if)::
+	# - [`@jsx:if`](#@jsx:if)
 	#		Only add the node if the given condition is valid.
 	#
-	# ### Events
-	#
-	# [`@on:*`](#@on:event)::
-	#		registers a callback to handle the given event.
-	#
-	# ### References
-	#
-	# [`@jsx:as`](#@jsx:as)/`jsx:ref`::
+	# - [`@jsx:as`/`@jsx:ref`](#@jsx:as)
 	#		creates a reference (accessible in the underlying JavaScript)
 	#   to the current rendered node.
+	#
+	# Special namespace attributes
+	# ----------------------------
+	#
+	# - [`@on:*`](#@on:event)
+	#		registers a callback to handle the given event.
 	#
 	# }}}
 
@@ -168,7 +213,7 @@
 	# ==========================================================================
 
 	# {{{
-	# [Component]`<jsx:Component name="NAME">`::
+	# <a name=jsx:Component></a>`<jsx:Component name="NAME">`::
 	# 
 	# 	Declares a new JSX component
 	#
@@ -241,26 +286,26 @@
 	# ==========================================================================
 
 	# {{{
-	# ### <a name="Template"></a>`<jsx:Template name="NAME" param="NAME>`
+	# <a name="jsx:Template"></a>`<jsx:Template name="NAME" param="NAME>`::
 	# 
-	# Defines a named template that can be referenced with [<jsx:apply>](#apply)
+	#     Defines a named template that can be referenced with [<jsx:apply>](#apply)
 	#
-	# - `name` is the name of the template, referenced in `apply`
-	# - *`param`*, the optional parameter name for the given data (`_` by default) 
+	#     - `name` is the name of the template, referenced in `apply`
+	#     - *`param`*, the optional parameter name for the given data (`_` by default) 
 	#
-	# ```html
-	# <ul>
-	#   <li jsx:map="state.items>
-	#     <!-- This is where the template is REFERENCED -->
-	#     <jsx:apply template="item" />
-	#   </li>
-	# </ul>
-	# <!-- This is where the template is DECLARED -->
-	# <jsx:Template name="item" param="item">
-	#    <span jsx:text="item.name" />
-	#    <span jsx:text="item.value />
-	# </jsx:Template>
-	# ```
+	#     ```html
+	#     <ul>
+	#       <li jsx:map="state.items>
+	#         <!-- This is where the template is REFERENCED -->
+	#         <jsx:apply template="item" />
+	#       </li>
+	#     </ul>
+	#     <!-- This is where the template is DECLARED -->
+	#     <jsx:Template name="item" param="item">
+	#        <span jsx:text="item.name" />
+	#        <span jsx:text="item.value />
+	#     </jsx:Template>
+	#     ```
 	# }}}
 	<xsl::template(match="jsx:Template")
 		<xsl::call-template(name=comment)
@@ -285,10 +330,10 @@
 	# ==========================================================================
 
 	# {{{
-	# ### <a name="jsx:value"></a>`<jsx:value>EXPRESSION</jsx:value>`
+	# <a name="jsx:value"></a>`<jsx:value>EXPRESSION</jsx:value>`::
 	# 
-	# Evaluates the given `EXPRESSION` and adds its result to the content
-	# of the current node (the parent of the `jsx:value` node).
+	#   Evaluates the given `EXPRESSION` and adds its result to the content
+	#   of the current node (the parent of the `jsx:value` node).
 	#
 	# }}}
 	
@@ -311,9 +356,9 @@
 	# ==========================================================================
 
 	# {{{
-	# ### <a name="component"></a>`<jsx:component jsx:class="CLASSNAME" js:ref="REF" data="EXPRESSION" options="EXPRESSION">NODES</jsx:component>`
+	# <a name="jsx:component"></a>`<jsx:component jsx:class="CLASSNAME" js:ref="REF" data="EXPRESSION" options="EXPRESSION">NODES</jsx:component>`::
 	# 
-	# TODO
+	#    TODO
 	# }}}
 	
 	<xsl::template(match="jsx:component")
@@ -328,7 +373,7 @@
 	# ==========================================================================
 
 	# {{{
-	# <a name="apply"></a>`<jsx:apply template="NAME">`::
+	# <a name="jsx:apply"></a>`<jsx:apply template="NAME">`::
 	# 
 	#    Applies the template with the given name. This requires
 	#    a previously defined `<jsx:Template name=NAME>` tag in
@@ -380,7 +425,7 @@
 	# ==========================================================================
 
 	# {{{
-	# <a name="value"></a>`jsx:value="EXPRESSION"`::
+	# <a name="@jsx:value"></a>`jsx:value="EXPRESSION"`::
 	# 
 	#      Indicates that the content of the current element will be replaced by the
 	#      the value of the given `EXPRESSION` (in JavaScript)
@@ -415,7 +460,7 @@
 	# @jsx:map
 	# ==========================================================================
 	# {{{
-	# <a name="map"></a>`jsx:map="EXPRESSION" jsx:with="NAME"::
+	# <a name="jsx:map"></a>`jsx:map="EXPRESSION" jsx:with="NAME"::
 	# 
 	#      The current node will be repeated as many times as there are
 	#      elements in the array returned by `EXPRESSION`. 
