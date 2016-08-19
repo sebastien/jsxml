@@ -63,7 +63,7 @@ dist/%.xsl: src/%.xsl.paml
 dist/%.xml: %.xml.paml
 	@echo "$(GREEN)📝  $@$(RESET)"
 	@mkdir -p `dirname $@`
-	@$(PAMELA) $< | sed -e 's|../src/xsl/||g' > $@
+	@$(PAMELA) $< | sed -e 's|../src/xsl/|../|g' > $@
 
 dist/%.js: dist/%.xml dist/jsxml.xsl
 	@echo "$(GREEN)📝  $@$(RESET)"
