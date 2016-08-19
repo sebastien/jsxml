@@ -87,7 +87,7 @@ print-%:
 	@echo $*=$($*) | xargs -n1 echo
 
 push: dist
-	@echo "$(CYAN)→ Pushing changes $@$(RESET)"
+	@echo "$(CYAN)→ Pushing changes $@$(RESET)" ; true
 	@git commit -a -m "Building dist files for $(BUILD_ID)"
 	@git push --all
 
