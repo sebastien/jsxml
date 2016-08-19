@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" media="screen" href="jsxml.xsl"?>
+<jsx:Component xmlns:jsx="https://github.com/sebastien/jsxml" xmlns:action="https://github.com/sebastien/jsxml+action" xmlns:on="https://github.com/sebastien/jsxml+events" xmlns:uis="https://uis.unesco.org/components/">
+  <button>
+    <jsx:value>    this.state.label
+    </jsx:value>
+  </button>
+</jsx:Component>
