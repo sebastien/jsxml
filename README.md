@@ -1,12 +1,5 @@
 
-## JSXML: Generate React render code from XML
-
----
-project: JSXML
-url: https://github.com/sebastien/jsxml
-license: MIT
-version: 0.0.0
----
+## The JSXML Templating language
 
 JSXML is a set of XSL stylesheets that transform XML into JavaScript code equivalent to JSX. Unlike JSX, JSXML is easy to parse (it uses XML) and can easily be re-targetted to different rendering engines (React, Inferno, D3, etc‥).
 
@@ -15,42 +8,6 @@ One of the main drawback of JSX is that it introduces a tigh coupling between th
 The JSX XSLT Templates allows you to write XML documents that are automatically rendered to an UMD JavaScript module definining the JSX equivalent (using `React.createElement`) that can be readily imported as view.
 
 The result is that the view can be written predominently in XML/XHTML and can be dynamically integrated with the controller at runtime using dynamic module loading.
-
-## Quick start
-
-Create a file named `view.xml`
-
-```
-<?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/xsl" media="screen" href="https://cdn.rawgit.com/sebastien/jsxml/master/dist/jsxml.xsl"?>
-<jsx:Component(xmlns::jsx="https://github.com/sebastien/jsxml",xmlns::on="https://github.com/sebastien/jsxml/actions")
-   Hello, world!
-</jsx:Component>
-```
-
-Now open this file using your browser, and you should see the following code:
-
-If you'd like to convert the XML file through your command line, make sure you have `xsltproc` and `curl` installed and do:
-
-```bash
-curl 'https://cdn.rawgit.com/sebastien/jsxml/master/dist/jsxml.xsl' > jsxml.xsl
-xsltproc jsxml.xsl view.xml > view.js
-```
-
-Now you can directly import the view in your React component:
-
-```javascript{1,6}
-import {View} from "./view.js";
-import {ReactComponent} from "react";
-
-export class Component extends ReactComponent {
-    render(){
-       return View(this.state, this);
-    }
-}
-```
-
-## Overview
 
 A complete JSXML example looks like that:
 
@@ -72,9 +29,45 @@ A complete JSXML example looks like that:
 </jsx:Component>
 ```
 
-Note how HTML tags are not prefixed by any namespace while JSXML directives are within the `jsxml` namespace.
+### Quick start
 
-### JSX Elements in a nutshell
+Create a file named `view.xml`
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" media="screen" href="https://cdn.rawgit.com/sebastien/jsxml/master/dist/jsxml.xsl"?>
+<jsx:Component(xmlns::jsx="https://github.com/sebastien/jsxml",xmlns::on="https://github.com/sebastien/jsxml/actions")
+   Hello, world!
+</jsx:Component>
+```
+
+Now open this file using your browser, and you should see the following code:
+
+```
+TODO
+```
+
+If you'd like to convert the XML file through your command line, make sure you have `xsltproc` and `curl` installed and do:
+
+```bash
+curl 'https://cdn.rawgit.com/sebastien/jsxml/master/dist/jsxml.xsl' > jsxml.xsl
+xsltproc jsxml.xsl view.xml > view.js
+```
+
+Now you can directly import the view in your React component:
+
+```javascript{1,6}
+import {View} from "./view.js";
+import {ReactComponent} from "react";
+
+export class Component extends ReactComponent {
+    render(){
+       return View(this.state, this);
+    }
+}
+```
+
+### JSXML in a nutshell
 
 #### Namespaces
 
@@ -128,7 +121,7 @@ Note how HTML tags are not prefixed by any namespace while JSXML directives are 
  - [`<jsx:component class>`](#jsx:component) instanciates an imported component.
 
 
-### JSXML Attributes
+#### JSXML Attributes
 
  - [`@jsx:map`+`@jsx:with`](#@jsx:map) Maps the selected items to the contents of the node. Works for both arrays and objects.
 
@@ -142,19 +135,18 @@ Note how HTML tags are not prefixed by any namespace while JSXML directives are 
  - [`@jsx:as`/`@jsx:ref`](#@jsx:as) creates a reference (accessible in the underlying JavaScript) to the current rendered node.
 
 
-### Special namespace attributes
+#### Special namespace attributes
 
  - [`@on:*`](#@on:event) registers a callback to handle the given event.
 
 
-## The JSXML language
+### Element reference
 
-<dl>
+#### <a name=jsx:Component>`<jsx:Component name>`
 
-<dt><a name=jsx:Component>`<jsx:Component name="NAME">`<dt>
-<dd>Declares a new JSX component
+Declares a new JSX component
 
- - `name` is the variable name to which the created `ReactElement` factory will be bound. If not specified, it will default to `View`.
+ - `name=NAME` is the variable name to which the created `ReactElement` factory will be bound. If not specified, it will default to `View`.
 
 
 ```html
@@ -163,10 +155,9 @@ Note how HTML tags are not prefixed by any namespace while JSXML directives are 
 </jsx:Component>
 ```
 
-</dd>
+#### `<jsx:Template name param>`
 
-<dt>`<jsx:Template name="NAME" param="NAME>`<dt>
-<dd>Defines a named template that can be referenced with [<jsx:apply>](#apply)
+Defines a named template that can be referenced with [<jsx:apply>](#apply)
 
  - `name` is the name of the template, referenced in `apply` 
  - _`param`_, the optional parameter name for the given data (`_` by default)
@@ -186,20 +177,30 @@ Note how HTML tags are not prefixed by any namespace while JSXML directives are 
 </jsx:Template>
 ```
 
-</dd>
+#### `<jsx:import name from as>`
 
-<dt>`<jsx:value>EXPRESSION</jsx:value>`<dt>
-<dd>Evaluates the given `EXPRESSION` and adds its result to the content of the current node (the parent of the `jsx:value` node).
+Imports a value from an external module
 
-</dd>
+#### `<jsx:component jsx:class jsx:ref data options>`
 
-<dt>`<jsx:component jsx:class="CLASSNAME" js:ref="REF" data="EXPRESSION" options="EXPRESSION">NODES</jsx:component>`<dt>
-<dd>TODO
+Instanciates the component with the given `jsx:class` feeding it the given `data` and `options`.
 
-</dd>
+ - `jsx:class=NAME` the symbol name of the class that will be instanciated 
+ - `data=EXPRESSION?` an expression evaluating to the data that will be passed to the component. 
+ - `options=EXPRESSION?` an expression evaluating to the options that will be passed to the component (this will set `props` in React).
 
-<dt>`<jsx:apply template="NAME">`<dt>
-<dd>Applies the template with the given name. This requires a previously defined `<jsx:Template name=NAME>` tag in the document.
+
+When the `<jsx:component>` is not empty, its content will be passed as children of the component (`props.children` in React).
+
+```
+<jsx:component jsx:class="SearchBox" jsx:ref="search">
+   <button>Extra button!</button>
+</jsx:Component>
+```
+
+#### `<jsx:apply template>`
+
+Applies the template with the given name. This requires a previously defined `<jsx:Template name=NAME>` tag in the document.
 
 ```html
 <jsx:apply template="placeholder />
@@ -208,26 +209,46 @@ Note how HTML tags are not prefixed by any namespace while JSXML directives are 
 
 Note that you can use the [`jsx:map`](#jsx-map) attribute in the `jsx:apply` element.
 
-</dd>
+#### `<jsx:for each in>`
 
-<dt>`jsx:value="EXPRESSION"`<dt>
-<dd>Indicates that the content of the current element will be replaced by the the value of the given `EXPRESSION` (in JavaScript)
-
-When the expression evaluates to either to `null`, `false` or `undefined`, then the default value will be used.
+Loops over the values defined in `EXPRESSION`, assigning each item to `NAME` (`_` by default). This requires that the given EXPRESSION evaluates to a list.
 
 ```html
-<div class="person">
-    <!-- The name will be replaced by `Unnamed person` if missing -->
-    <span class="name" jsx:value="_.name">Unnamed person</span>
-    <!-- while the age will be empty if the value if missing -->
-    <span class="age"  jsx:value="_.age"></span>
-</div>
+<ul><jsx:for each="number" in="[1,2,3,4,5]">
+    <li>
+       Number: <jsx:value>number</jsx:value>
+    </li>
+</jsx></ul>
 ```
 
-</dd>
+#### `<jsx:if test>`
 
-<dt>`jsx:map=''EXPRESSION" jsx:with="NAME''<dt>
-<dd>The current node will be repeated as many times as there are elements in the array returned by `EXPRESSION`.
+Only applies the nodes below if the condition is true
+
+```html
+<jsx:if test="state.items.length &gt 0">
+    <ul><li jsx:map="state.items>
+       Item: <jsx:value>_</jsx:value>
+    </li></ul>
+</jsx>
+<jsx:else>
+    No items.
+</jsx:else>
+```
+
+#### `<jsx:value>`
+
+Evaluates the given `EXPRESSION` and adds its result to the content of the current node (the parent of the `jsx:value` node).
+
+#### `<jsx:t>`
+
+Feeds the content of the node through the global JavaScript `T` function. `T` is expected to be `T(text:String,lang:String?):String`.
+
+### Attributes reference
+
+#### `@jsx:map jsx:with`
+
+The current node will be repeated as many times as there are elements in the array returned by `EXPRESSION`.
 
 If `jsx:with` is specified, then the variable with the given `NAME` will be used for iteration, otherwise it defaults to `_`.
 
@@ -242,10 +263,18 @@ If `jsx:with` is specified, then the variable with the given `NAME` will be used
 </div>
 ```
 
-</dd>
+#### `@jsx:value`
 
+The attribute variant of <jsx:value>. Evaluates the given `value` and replaces the current node's content with it _unless_ it is null or undefined. In this case, the default content of the node will be used.
 
-</dl>
+```html
+<div class="person">
+    <!-- The name will be replaced by `Unnamed person` if missing -->
+    <span class="name" jsx:value="_.name">Unnamed person</span>
+    <!-- while the age will be empty if the value if missing -->
+    <span class="age"  jsx:value="_.age"></span>
+</div>
+```
 
 
 

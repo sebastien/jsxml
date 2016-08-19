@@ -3,6 +3,15 @@
   <xsl:output method="text" encoding="UTF-8" indent="no" />
   <xsl:variable name="LOWERCASE" select="'abcdefghijklmnopqrstuvwxyz'" />
   <xsl:variable name="UPPERCASE" select="'ABCDEFGHIJKLMNOPQRSTUVWXYZ'" />
+  <xsl:template match="jsx:*">
+    <xsl:text>(console.error("&lt;</xsl:text>     
+    <xsl:value-of select="name()" /><xsl:text>&gt;&#x0020;element not supported"))</xsl:text>
+  </xsl:template>
+  <xsl:template match="@jsx:*">
+    <xsl:text>/*</xsl:text>     
+    <xsl:value-of select="name()" /><xsl:text>=</xsl:text>     
+    <xsl:value-of select="." /><xsl:text>*/null</xsl:text>
+  </xsl:template>
   <xsl:template match="jsx:Component" name="component">
     <xsl:param name="prefix" select="'exports.'" />
     <xsl:param name="postamble">
@@ -72,17 +81,20 @@
     <xsl:call-template name="element-children" /><xsl:text>)};</xsl:text>     
     <xsl:text>&#x000A;</xsl:text>
   </xsl:template>
-  <xsl:template match="jsx:value">
-    <xsl:text>(</xsl:text>     
-    <xsl:value-of select="normalize-space(.)" /><xsl:text>)</xsl:text>
-  </xsl:template>
-  <xsl:template match="jsx:T" />
+  <xsl:template match="jsx:import" />
   <xsl:template match="jsx:component">
-    <xsl:call-template name="create-element">
-      <xsl:with-param name="name">
-        <xsl:value-of select="@jsx:class" />
-      </xsl:with-param>
-    </xsl:call-template>
+    <xsl:choose>
+      <xsl:when test="@jsx:class">
+        <xsl:call-template name="create-element">
+          <xsl:with-param name="name">
+            <xsl:value-of select="@jsx:class" />
+          </xsl:with-param>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:text>console.error("&lt;jsx:component&gt; tag missing a jsx:class attribute")</xsl:text>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
   <xsl:template match="jsx:apply" name="jsx-apply">
     <xsl:variable name="template" select="@template" />
@@ -99,23 +111,56 @@
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
-  <xsl:template match="jsx:import" />
-  <xsl:template match="jsx:*">
-    <xsl:text>(console.error("&lt;</xsl:text>     
-    <xsl:value-of select="name()" /><xsl:text>&gt;&#x0020;element not supported"))</xsl:text>
-  </xsl:template>
-  <xsl:template match="*[@jsx:value]">
+  <xsl:template match="jsx:for" name="jsx-for">
     <xsl:choose>
-      <xsl:when test="*">
+      <xsl:when test="@in">
         <xsl:text>(</xsl:text>         
-        <xsl:value-of select="@jsx:text" /><xsl:text>) ? (</xsl:text>         
-        <xsl:value-of select="@jsx:text" /><xsl:text>) : (</xsl:text>         
-        <xsl:apply-templates select="*" /><xsl:text>)</xsl:text>
+        <xsl:value-of select="@in" /><xsl:text>||new Array(0)).map(function(</xsl:text>         
+        <xsl:choose>
+          <xsl:when test="@each">
+            <xsl:value-of select="@each" />
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:text>_</xsl:text>
+          </xsl:otherwise>
+        </xsl:choose><xsl:text>,i){return (</xsl:text>         
+        <xsl:apply-templates select="*" />
+        <xsl:text>        )})
+        </xsl:text>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:value-of select="@jsx:text" />
+        <xsl:text>        console.error("&lt;jsx:for&gt; is missing its `in` attribute")
+        </xsl:text>
       </xsl:otherwise>
     </xsl:choose>
+  </xsl:template>
+  <xsl:template match="jsx:if" name="jsx-if">
+    <xsl:choose>
+      <xsl:when test="@test">
+        <xsl:text>&#x000A;</xsl:text>         
+        <xsl:text>/* &lt;jsx:if test=</xsl:text>         
+        <xsl:value-of select="@test" /><xsl:text> &gt;*/</xsl:text>         
+        <xsl:text>&#x000A;</xsl:text>         
+        <xsl:text>((</xsl:text>         
+        <xsl:value-of select="@test" /><xsl:text>) ? (</xsl:text>         
+        <xsl:apply-templates select="*" /><xsl:text>) : null)</xsl:text>         
+        <xsl:text>&#x000A;</xsl:text>         
+        <xsl:text>/* &lt;/jsx:if&gt; */</xsl:text>         
+        <xsl:text>&#x000A;</xsl:text>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:text>        console.error("&lt;jsx:if&gt; is missing its `test` attribute")
+        </xsl:text>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+  <xsl:template match="jsx:value">
+    <xsl:text>(</xsl:text>     
+    <xsl:value-of select="normalize-space(.)" /><xsl:text>)</xsl:text>
+  </xsl:template>
+  <xsl:template match="jsx:T">
+    <xsl:text>(T(</xsl:text>     
+    <xsl:apply-templates select="*" /><xsl:text>)</xsl:text>
   </xsl:template>
   <xsl:template match="*[@jsx:map]">
     <xsl:text>(</xsl:text>     
@@ -147,10 +192,11 @@
     <xsl:param name="name">
       <xsl:text>"</xsl:text>       
       <xsl:value-of select="name()" /><xsl:text>"</xsl:text>
-    </xsl:param><xsl:text>&#x000A;</xsl:text>     
+    </xsl:param>
+    <xsl:param name="content" /><xsl:text>&#x000A;</xsl:text>     
     <xsl:text>React.createElement(</xsl:text>     
     <xsl:value-of select="$name" /><xsl:text>,</xsl:text>     
-    <xsl:variable name="attributes" select="@*[namespace-uri()!='https://github.com/sebastien/jsxml']|@jsx:as|@jsx:ref|@jsx:value" />
+    <xsl:variable name="attributes" select="@*[namespace-uri()!='https://github.com/sebastien/jsxml']|@jsx:as|@jsx:ref" />
     <xsl:choose>
       <xsl:when test="$attributes">
         <xsl:text>{</xsl:text>         
@@ -165,13 +211,21 @@
         <xsl:text>null</xsl:text>
       </xsl:otherwise>
     </xsl:choose><xsl:text />     
-    <xsl:variable name="children" select="*[not(self::jsx:import)]|text()[string-length(normalize-space(.))>0]" />
-    <xsl:if test="count($children)>0">
-      <xsl:text>,</xsl:text>       
-      <xsl:call-template name="element-children">
-        <xsl:with-param name="children" select="$children" />
-      </xsl:call-template>
-    </xsl:if><xsl:text>)</xsl:text>
+    <xsl:choose>
+      <xsl:when test="$content">
+        <xsl:text>,</xsl:text>         
+        <xsl:value-of select="$content" />
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:variable name="children" select="*[not(self::jsx:import)]|text()[string-length(normalize-space(.))>0]" />
+        <xsl:if test="count($children)>0">
+          <xsl:text>,</xsl:text>           
+          <xsl:call-template name="element-children">
+            <xsl:with-param name="children" select="$children" />
+          </xsl:call-template>
+        </xsl:if>
+      </xsl:otherwise>
+    </xsl:choose><xsl:text>)</xsl:text>
   </xsl:template>
   <xsl:template name="element-children">
     <xsl:param name="children" select="*[not(self::jsx:import)]|text()[string-length(normalize-space(.))>0]" />
@@ -205,23 +259,59 @@
       <xsl:text> </xsl:text>
     </xsl:if><xsl:text>"</xsl:text>
   </xsl:template>
-  <xsl:template match="@jsx:*">
-    <xsl:text>/*</xsl:text>     
-    <xsl:value-of select="name()" /><xsl:text>=</xsl:text>     
-    <xsl:value-of select="." /><xsl:text>*/null</xsl:text>
-  </xsl:template>
   <xsl:template match="@jsx:as|@jsx:ref">
     <xsl:text>"ref":</xsl:text>     
     <xsl:text>"</xsl:text>     
     <xsl:value-of select="." /><xsl:text>"</xsl:text>
   </xsl:template>
-  <xsl:template match="@jsx:value">
-    <xsl:text>"value":(</xsl:text>     
-    <xsl:value-of select="." /><xsl:text>)</xsl:text>
+  <xsl:template match="*[@jsx:value]">
+    <xsl:choose>
+      <xsl:when test="@jsx:map">
+        <xsl:text>        console.error("jsx:value attribute used along jsx:map. Tranform the jsx:value to a child node")
+        </xsl:text>
+      </xsl:when>
+      <xsl:when test="count(*|text())>0">
+        <xsl:text>&#x000A;</xsl:text>         
+        <xsl:text>(function(){let __=</xsl:text>         
+        <xsl:value-of select="@jsx:value" /><xsl:text>;</xsl:text>         
+        <xsl:text>return (</xsl:text>         
+        <xsl:call-template name="create-element">
+          <xsl:with-param name="content">
+            <xsl:text> __ ? </xsl:text>             
+            <xsl:value-of select="@jsx:value" /><xsl:text> : [</xsl:text>             
+            <xsl:call-template name="element-children" /><xsl:text>]</xsl:text>
+          </xsl:with-param>
+        </xsl:call-template><xsl:text>)} () )</xsl:text>         
+        <xsl:text>&#x000A;</xsl:text>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:call-template name="create-element">
+          <xsl:with-param name="content">
+            <xsl:value-of select="@jsx:value" />
+          </xsl:with-param>
+        </xsl:call-template>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
   <xsl:template match="@*">
     <xsl:text>"</xsl:text>     
     <xsl:value-of select="local-name()" /><xsl:text>":</xsl:text>     
+    <xsl:call-template name="attribute-value" />
+  </xsl:template>
+  <xsl:template match="@*[name()='class']">
+    <xsl:text>"</xsl:text>     
+    <xsl:text>className</xsl:text>     
+    <xsl:text>":</xsl:text>     
+    <xsl:call-template name="attribute-value" />
+  </xsl:template>
+  <xsl:template match="@*[substring-before(name(),':')='on']">
+    <xsl:text>"on</xsl:text>     
+    <xsl:call-template name="capitalize">
+      <xsl:with-param name="text" select="local-name()" />
+    </xsl:call-template><xsl:text>":</xsl:text>     
+    <xsl:value-of select="." />
+  </xsl:template>
+  <xsl:template name="attribute-value">
     <xsl:variable name="text">
       <xsl:value-of select="." />
     </xsl:variable>
@@ -235,19 +325,6 @@
         <xsl:value-of select="." /><xsl:text>"</xsl:text>
       </xsl:otherwise>
     </xsl:choose>
-  </xsl:template>
-  <xsl:template match="@*[name()='class']">
-    <xsl:text>"</xsl:text>     
-    <xsl:text>className</xsl:text>     
-    <xsl:text>":"</xsl:text>     
-    <xsl:value-of select="." /><xsl:text>"</xsl:text>
-  </xsl:template>
-  <xsl:template match="@*[substring-before(name(),':')='on']">
-    <xsl:text>"on</xsl:text>     
-    <xsl:call-template name="capitalize">
-      <xsl:with-param name="text" select="local-name()" />
-    </xsl:call-template><xsl:text>":</xsl:text>     
-    <xsl:value-of select="." />
   </xsl:template>
   <xsl:template name="comment">
     <xsl:param name="text" /><xsl:text>&#x000A;</xsl:text>     
@@ -285,7 +362,36 @@
     <xsl:text>&#x000A;</xsl:text>     "use strict" 
     <xsl:text>&#x000A;</xsl:text>     Object.defineProperty(exports, "__esModule", {value:true}); var React  = react; /* Imported components */ 
     <xsl:for-each select="//jsx:import">
-      <xsl:text>var </xsl:text>       
+      <xsl:choose>
+        <xsl:when test="jsx:symbol">
+          <xsl:variable name="module">
+            <xsl:choose>
+              <xsl:when test="@from">
+                <xsl:value-of select="translate(@from,'.','_')" />
+              </xsl:when>
+              <xsl:otherwise>
+                <xsl:text>                (console.error("jsx:import tags is missing the from='module' attribute"))
+                </xsl:text>
+              </xsl:otherwise>
+            </xsl:choose>
+          </xsl:variable>
+          <xsl:for-each select="jsx:symbol">
+            <xsl:call-template name="symbol-import">
+              <xsl:with-param name="origin">
+                <xsl:value-of select="$module" /><xsl:text>.</xsl:text>                 
+                <xsl:value-of select="@name" />
+              </xsl:with-param>
+            </xsl:call-template>
+          </xsl:for-each>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:call-template name="symbol-import" />
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:for-each>
+  </xsl:template>
+  <xsl:template name="symbol-import">
+    <xsl:param name="name">
       <xsl:choose>
         <xsl:when test="@as">
           <xsl:value-of select="@as" />
@@ -297,7 +403,9 @@
           <xsl:text>          (console.error("jsx:import tag is missing the name='symbol' attribute"))
           </xsl:text>
         </xsl:otherwise>
-      </xsl:choose><xsl:text>=</xsl:text>       
+      </xsl:choose>
+    </xsl:param>
+    <xsl:param name="origin">
       <xsl:choose>
         <xsl:when test="@from">
           <xsl:value-of select="translate(@from,'.','_')" />
@@ -316,8 +424,11 @@
           <xsl:text>          (console.error("jsx:import tag is missing the name='symbol' attribute"))
           </xsl:text>
         </xsl:otherwise>
-      </xsl:choose><xsl:text>;</xsl:text>
-    </xsl:for-each>
+      </xsl:choose>
+    </xsl:param><xsl:text>var </xsl:text>     
+    <xsl:value-of select="$name" /><xsl:text>=</xsl:text>     
+    <xsl:value-of select="$origin" /><xsl:text>;</xsl:text>     
+    <xsl:text>&#x000A;</xsl:text>
   </xsl:template>
   <xsl:template name="helpers">
         var _empty = Object.freeze([]); var _type  = function(v){ if      (v === null)               {return 0} else if (v ==  [])                 {return 0} else if (!v)                       {return 0} else if (v.length== 0)             {return 0} else if (v === true)               {return 1} else if (typeof(v) === "number")   {return 'n'} else if (typeof(v) === "string")   {return 's'} else if (v instanceof Array)       {return 'a'} else if (v instanceof Object)      {return Object.getOwnPropertyNames(v).length > 0 ? 'o' : 0} else                               {return -1} }; var _flatten = function(){ var r = []; for (var i=0;i&lt;arguments.length;i++) { var v=arguments[i]; if (v instanceof Array) {r=r.concat(v)} else {r.push(v)} } return r; }; var _list  = function(v){ switch(_type(v)){ case 'n': case 's': return [v]; case 'a': return v; case 'o': return Object.getOwnPropertyNames(v).map(function(k){return v[k]}); default: return _empty; } };
