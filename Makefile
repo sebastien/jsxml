@@ -1,5 +1,5 @@
 # =============================================================================
-# PYTHON MODULE MAKEFILE
+# JSXML Makefile
 # -----------------------------------------------------------------------------
 # Updated: 2016-08-16
 # Created: 2016-08-16
@@ -10,8 +10,10 @@ SRC=src
 DIST=dist
 
 SOURCES_XSL_PAML   = $(wildcard src/*.xsl.paml)
+SOURCES_JS         = $(wildcard src/*.js)
 EXAMPLES_XML_PAML  = $(wildcard examples/*.xml.paml)
 DIST_FILES         = $(SOURCES_XSL_PAML:$(SRC)/%.xsl.paml=$(DIST)/%.xsl) \
+                     $(SOURCES_JS:$(SRC)/%.js=$(DIST)/%.js) \
                      $(EXAMPLES_XML_PAML:%.xml.paml=$(DIST)/%.xml) \
                      $(EXAMPLES_XML_PAML:%.xml.paml=$(DIST)/%.js)  \
                      README.md
@@ -70,11 +72,16 @@ dist/%.js: dist/%.xml dist/jsxml.xsl
 	@mkdir -p `dirname $@`
 	@$(XSLTPROC) dist/jsxml.xsl $< | $(PRETTY_JS) > $@
 
+dist/%.js: src/%.js
+	@mkdir -p `dirname $@`
+	@cp $< $@
+
+
 README.md: src/jsxml.xsl.paml
 	@echo "$(GREEN)📝  $@$(RESET)"
 	@touch $@
 	@chmod +w $@
-	@$(LITTERATE) $< | $(TEXTO) -Omarkdown -xtools/apidoc.py - $@
+	@$(LITTERATE) $< | $(TEXTO) -Omarkdown - $@
 	@chmod -w $@
 
 # -----------------------------------------------------------------------------
