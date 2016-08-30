@@ -41,19 +41,29 @@ function getXSLURL ( text ) {
 */
 function loadXSLProcessor( url ) {
 	if (!PROCESSORS[url]) {
-		let p = new XSLTProcessor();
-		return fetch(url).then(function(response){
-			if (!response.ok) {
-				return console.error("jsxml: Could not find stylesheet", url , ":", response.url);
-			} else {
-				return response.text()
-			}
-		}).then(function(text){
-			let node = new window.DOMParser().parseFromString(text, "text/xml");
-			p.importStylesheet(node);
-			PROCESSORS[url] = p;
-			return p;
+		/* NOTE: We can't use `fetch()` here as somehow a DOMParser'ed 
+		 * response.text() from fetch will result in an encoding error
+		 * when the stylesheet contains an xsl:import, but the
+		 * XMLHttpRequest works perfectly here.
+		*/
+		let res = new Promise(function(resolve,reject){
+			let xsl = new XSLTProcessor();
+			let req = new XMLHttpRequest();
+			req.addEventListener("load", function(event){
+				if (event.target.readyState == 4) {
+					if (event.target.status >= 400) {
+						return reject(console.error("jsxml: Could not find stylesheet", url , ":", response.url));
+					} else {
+						xsl.importStylesheet(event.target.responseXML);
+						PROCESSORS[url] = xsl;
+						return resolve(xsl);
+					}
+				}
+			})
+			req.open("GET", url);
+			req.send();
 		})
+		return res;
 	} else {
 		return Promise.resolve(PROCESSORS[url]);
 	}
@@ -68,7 +78,12 @@ function translateJSXML( text ) {
 	return loadXSLProcessor(url).then( function(processor) {
 		let node = new window.DOMParser().parseFromString(text, "text/xml");
 		let res  = processor.transformToFragment(node, document);
-		return res.textContent;
+		if (!res) {
+			console.error("jsxml: Could not transform document using styleseet", url);
+			return null;
+		} else {
+			return res.textContent;
+		}
 	})
 }
 

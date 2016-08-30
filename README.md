@@ -3,9 +3,17 @@
 
 JSXML is a set of XSL stylesheets that transform XML into JavaScript code equivalent to JSX. Unlike JSX, JSXML is easy to parse (it uses XML) and can easily be re-targetted to different rendering engines (React, Inferno, D3, etc‥).
 
-One of the main drawback of JSX is that it introduces a tigh coupling between the JavaScript (the controller) and the HTML code (the view) by enourage you to mix view code within controller code.
+One of the main drawback of JSX is that it introduces a tight coupling between the JavaScript (the controller) and the HTML code (the view) by enouraging a mix of view code within controller code.
 
-The JSX XSLT Templates allows you to write XML documents that are automatically rendered to an UMD JavaScript module definining the JSX equivalent (using `React.createElement`) that can be readily imported as view.
+JSXML was build to satisfy the following requirements:
+
+ - Encourage decoupling of view code from controller code 
+ - Stay close to a classic HTML/CSS + JavaScript workflow, as opposed to JS/JSX workflow 
+ - Abstract from rendering back-end 
+ - Leverage open web technologies (XML, XSLT)
+
+
+In practice, JSXML allows you to write X(HT)ML documents that are automatically rendered to an UMD JavaScript module in expanded JSX (using `React.createElement`) that can be readily imported as view.
 
 The result is that the view can be written predominently in XML/XHTML and can be dynamically integrated with the controller at runtime using dynamic module loading.
 
@@ -36,7 +44,7 @@ Create a file named `view.xml`
 ```
 <?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" media="screen" href="https://cdn.rawgit.com/sebastien/jsxml/master/dist/jsxml.xsl"?>
-<jsx:Component(xmlns::jsx="https://github.com/sebastien/jsxml",xmlns::on="https://github.com/sebastien/jsxml/actions")
+<jsx:Component xmlns:jsx="https://github.com/sebastien/jsxml" xmlns::on="https://github.com/sebastien/jsxml/actions">
    Hello, world!
 </jsx:Component>
 ```
@@ -88,13 +96,19 @@ export class Component extends ReactComponent {
  - [`<jsx:attribute name=>`](#jsx:attribute) Sets an attribute on the current node.
 
 
- - [`<jsx:map value= with=>`](#jsx:map) Iterates over the given `value`
+ - [`<jsx:style=>`](#jsx:style) Sets a style property for the current node.
+
+
+ - [`<jsx:children>`](#jsx:children) Inserts the children that might have been passed by a parent component.
 
 
  - [`<jsx:T>`](#jsx:T) dynamically translates the given string through the JavaScript defined `T` function.
 
 
 #### Control flow
+
+ - [`<jsx:for each= in=>`](#jsx:for) Loops over the values returned by the given expression
+
 
  - [`<jsx:if test=>`](#jsx:if) Applies the current node only if the condition is true
 
@@ -110,7 +124,7 @@ export class Component extends ReactComponent {
  - [`<jsx:Template name=>`](#jsx:Template) declares a new re-usable snippet within a _component_.
 
 
- - [`<jsx:apply template jsx:map= jsx:with=>`](#jsx:apply) applies a `jsx:Template` to the current node., optionally mapping it to the given name.
+ - [`<jsx:apply template jsx:map= jsx:each=>`](#jsx:apply) applies a `jsx:Template` to the current node., optionally mapping it to the given name.
 
 
 #### Modules
@@ -123,7 +137,7 @@ export class Component extends ReactComponent {
 
 #### JSXML Attributes
 
- - [`@jsx:map`+`@jsx:with`](#@jsx:map) Maps the selected items to the contents of the node. Works for both arrays and objects.
+ - [`@jsx:map`+`@jsx:each`](#@jsx:map) Maps the selected items to the contents of the node. Works for both arrays and objects.
 
 
  - [`@jsx:value`](#@jsx:value) replaces the element's content with the given value
@@ -155,12 +169,13 @@ Declares a new JSX component
 </jsx:Component>
 ```
 
-#### `<jsx:Template name param>`
+#### <a _html="true" name="jsx:Template"/>
+`<jsx:Template name params>`
 
 Defines a named template that can be referenced with [<jsx:apply>](#apply)
 
  - `name` is the name of the template, referenced in `apply` 
- - _`param`_, the optional parameter name for the given data (`_` by default)
+ - _`params`_, the optional parameter names for the template
 
 
 ```html
@@ -171,17 +186,20 @@ Defines a named template that can be referenced with [<jsx:apply>](#apply)
   </li>
 </ul>
 <!-- This is where the template is DECLARED -->
-<jsx:Template name="item" param="item">
-   <span jsx:text="item.name" />
-   <span jsx:text="item.value />
+<jsx:Template name="item" params="item,index">
+   <span jsx:value="item.name"  />
+   <span jsx:value="item.value" />
+   [<span jsx:value="index + 1" />]
 </jsx:Template>
 ```
 
-#### `<jsx:import name from as>`
+#### <a _html="true" name="jsx:import"/>
+`<jsx:import name from as>`
 
 Imports a value from an external module
 
-#### `<jsx:component jsx:class jsx:ref data options>`
+#### <a _html="true" name="jsx:component"/>
+`<jsx:component jsx:class jsx:ref data options>`
 
 Instanciates the component with the given `jsx:class` feeding it the given `data` and `options`.
 
@@ -198,7 +216,8 @@ When the `<jsx:component>` is not empty, its content will be passed as children 
 </jsx:Component>
 ```
 
-#### `<jsx:apply template>`
+#### <a _html="true" name="jsx:apply"/>
+`<jsx:apply template params>`
 
 Applies the template with the given name. This requires a previously defined `<jsx:Template name=NAME>` tag in the document.
 
@@ -209,7 +228,8 @@ Applies the template with the given name. This requires a previously defined `<j
 
 Note that you can use the [`jsx:map`](#jsx-map) attribute in the `jsx:apply` element.
 
-#### `<jsx:for each in>`
+#### <a _html="true" name="jsx:for"/>
+`<jsx:for each in>`
 
 Loops over the values defined in `EXPRESSION`, assigning each item to `NAME` (`_` by default). This requires that the given EXPRESSION evaluates to a list.
 
@@ -221,7 +241,8 @@ Loops over the values defined in `EXPRESSION`, assigning each item to `NAME` (`_
 </jsx></ul>
 ```
 
-#### `<jsx:if test>`
+#### <a _html="true" name="jsx:if"/>
+`<jsx:if test>`
 
 Only applies the nodes below if the condition is true
 
@@ -236,21 +257,91 @@ Only applies the nodes below if the condition is true
 </jsx:else>
 ```
 
-#### `<jsx:value>`
+#### <a _html="true" name="jsx:value"/>
+`<jsx:value>`
 
 Evaluates the given `EXPRESSION` and adds its result to the content of the current node (the parent of the `jsx:value` node).
 
-#### `<jsx:t>`
+#### <a _html="true" name="jsx:attribute"/>
+`<jsx:attribute name= when= do=>`
+
+Sets/adds the attribute with the given `name` when the given condition is true.
+
+ - `name` is the name of the attribute to be set in the current node 
+ - `when` is an optional condition to be met for the attribute to be set 
+ - `do` is optional and can be either `set` or `add`, defining whether the attribute value is to be reset of expanded (useful for `class`).
+
+
+The content of the `<jsx:attribute>` element is the `{}`-expression or text value to be used.
+
+<blockquote><div class='content'><ul class=''list> <jsx:attribute name="class" when="items.length==0" do=''add>empty</jsx:attribute> ‥
+
+</div></blockquote>#### <a _html="true" name="jsx:style"/>
+`<jsx:style name= when=>`
+
+Sets the style (CSS) attribute with the given `name` when the given condition is true (if specified).
+
+ - `name` is the name of the attribute to be set in the current node 
+ - `when` is an optional condition to be met for the attribute to be set
+
+
+The content of the `<jsx:attribute>` element is the `{}`-expression or text value to be used.
+
+<path _html="true" d="M0,0 L100,100">
+ &lt;jsx:style name=
+<quote>strokeWidth</quote>
+:1.5 * _.strength&lt;/jsx:style&gt; 
+</path>
+#### <a _html="true" name="jsx:children"/>
+`<jsx:children>`
+
+Inserts the children that might have been passed whe composing the component into another component.
+
+Here is how you would define the children of an embedded component:
+
+```html
+<jsx:component jsx:class="Dialog">
+   <p>Are you sure you would like to remove this item?</p>
+</jsx:component>
+```
+
+And here is how to use the `<jsx:children>` element
+
+```html
+<jsx:Component jsx:class="Dialog">
+   <div class="Dialog">
+       <div class="message">
+           <jsx:children />
+       </div>
+       <div class="actions">
+           <button>Yes</button>
+           <button>No</button>
+       </div>
+   </div>
+</jsx:component>
+```
+
+#### <a _html="true" name="jsx:T"/>
+`<jsx:T>`
 
 Feeds the content of the node through the global JavaScript `T` function. `T` is expected to be `T(text:String,lang:String?):String`.
 
+```html
+<jsx:T>Hello, world</jsx:T>
+```
+
+```html
+<jsx:T>{"Hello" + ", world"}<jsx:T>
+```
+
 ### Attributes reference
 
-#### `@jsx:map jsx:with`
+#### <a _html="true" name="@jsx:map"/>
+`@jsx:map jsx:each`
 
 The current node will be repeated as many times as there are elements in the array returned by `EXPRESSION`.
 
-If `jsx:with` is specified, then the variable with the given `NAME` will be used for iteration, otherwise it defaults to `_`.
+If `jsx:each` is specified, then the variable with the given `NAME` will be used for iteration, otherwise it defaults to `_`.
 
 ```html
 <ul class="people">
@@ -263,7 +354,10 @@ If `jsx:with` is specified, then the variable with the given `NAME` will be used
 </div>
 ```
 
-#### `@jsx:value`
+> Note: > > With React, a `key` will be automatically inserted based on the > index unless a `key` attribute is already there.
+
+#### <a _html="true" name="@jsx:value"/>
+`@jsx:value`
 
 The attribute variant of <jsx:value>. Evaluates the given `value` and replaces the current node's content with it _unless_ it is null or undefined. In this case, the default content of the node will be used.
 
