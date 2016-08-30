@@ -158,8 +158,8 @@
         <xsl:when test="@test">
           <xsl:text>&#x000A;/* &lt;jsx:</xsl:text><xsl:value-of select="local-name()" /><xsl:text> test=</xsl:text><xsl:value-of select="@test" /><xsl:text> &gt;*/ </xsl:text>           
           <xsl:text>((</xsl:text>           
-          <xsl:value-of select="@test" /><xsl:text>) ? (</xsl:text>           
-          <xsl:apply-templates select="*" /><xsl:text>) : </xsl:text>           
+          <xsl:value-of select="@test" /><xsl:text>) ? [</xsl:text>           
+          <xsl:call-template name="element-children" /><xsl:text>] : </xsl:text>           
           <xsl:choose>
             <xsl:when test="following-sibling::*[1][self::jsx:elif]">
               <xsl:call-template name="jsx-if">
@@ -189,12 +189,21 @@
     <xsl:param name="node" select="." />
     <xsl:for-each select="$node">
       <xsl:text>&#x000A;/* &lt;jsx:else&gt; */</xsl:text>       
-      <xsl:apply-templates select="*" /><xsl:text>&#x000A;/* &lt;/jsx:else&gt; */&#x000A;</xsl:text>
+      <xsl:text>[</xsl:text>       
+      <xsl:call-template name="element-children" /><xsl:text>]</xsl:text>       
+      <xsl:text>&#x000A;/* &lt;/jsx:else&gt; */&#x000A;</xsl:text>
     </xsl:for-each>
   </xsl:template>
   <xsl:template match="jsx:else|jsx:elif">
     <xsl:text>/* jsx:</xsl:text>     
     <xsl:value-of select="local-name()" /><xsl:text> out of scope */</xsl:text>
+  </xsl:template>
+  <xsl:template match="*[@jsx:if]" name="jsx-if-attribute">
+    <xsl:text>/* @jsx:if= */</xsl:text>     
+    <xsl:text>((</xsl:text>     
+    <xsl:value-of select="@jsx:if" /><xsl:text>) ? (</xsl:text>     
+    <xsl:call-template name="create-element" /><xsl:text>) : null)</xsl:text>     
+    <xsl:text>/* =@jsx:if */</xsl:text>
   </xsl:template>
   <xsl:template match="jsx:value">
     <xsl:text>(</xsl:text>     
@@ -231,7 +240,7 @@
         </xsl:text>
       </xsl:otherwise>
     </xsl:choose><xsl:text>,value:</xsl:text>     
-    <xsl:call-template name="string-value" /><xsl:text>}</xsl:text>     
+    <xsl:value-of select="normalize-space(.)" /><xsl:text>}</xsl:text>     
     <xsl:if test="@when">
       <xsl:text>) : null)</xsl:text>
     </xsl:if>
@@ -297,13 +306,45 @@
       <xsl:value-of select="name()" /><xsl:text>"</xsl:text>
     </xsl:param>
     <xsl:param name="content" />
+    <xsl:param name="key" /><xsl:text>&#x000A;</xsl:text>     
+    <xsl:choose>
+      <xsl:when test="jsx:if|jsx:else|jsx:elif">
+        <xsl:text>React.createElement.apply(React, __flatten([</xsl:text>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:text>React.createElement(</xsl:text>
+      </xsl:otherwise>
+    </xsl:choose>
+    <xsl:call-template name="create-element-name">
+      <xsl:with-param name="name">
+        <xsl:value-of select="$name" />
+      </xsl:with-param>
+    </xsl:call-template><xsl:text>,</xsl:text>     
+    <xsl:call-template name="create-element-attributes">
+      <xsl:with-param name="key" select="$key" />
+    </xsl:call-template>
+    <xsl:call-template name="create-element-content">
+      <xsl:with-param name="content" select="$content" />
+    </xsl:call-template>
+    <xsl:choose>
+      <xsl:when test="jsx:if|jsx:else|jsx:elif">
+        <xsl:text>],2))</xsl:text>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:text>)</xsl:text>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+  <xsl:template name="create-element-name">
+    <xsl:param name="name">
+      <xsl:text>"</xsl:text>       
+      <xsl:value-of select="name()" /><xsl:text>"</xsl:text>
+    </xsl:param>
+    <xsl:value-of select="$name" />
+  </xsl:template>
+  <xsl:template name="create-element-attributes">
+    <xsl:param name="attributes" select="@*[namespace-uri()!='https://github.com/sebastien/jsxml']|@jsx:as|@jsx:ref" />
     <xsl:param name="key" />
-    <xsl:variable name="element">
-      <xsl:value-of select="." />
-    </xsl:variable><xsl:text>&#x000A;</xsl:text>     
-    <xsl:text>React.createElement(</xsl:text>     
-    <xsl:value-of select="$name" /><xsl:text>,</xsl:text>     
-    <xsl:variable name="attributes" select="@*[namespace-uri()!='https://github.com/sebastien/jsxml']|@jsx:as|@jsx:ref" />
     <xsl:if test="jsx:attribute|jsx:style">
       <xsl:text>(_mergeAttributes(</xsl:text>
     </xsl:if>
@@ -352,7 +393,10 @@
           <xsl:text>,</xsl:text>
         </xsl:if>
       </xsl:for-each><xsl:text>]))</xsl:text>
-    </xsl:if><xsl:text />     
+    </xsl:if>
+  </xsl:template>
+  <xsl:template name="create-element-content">
+    <xsl:param name="content" />
     <xsl:choose>
       <xsl:when test="$content">
         <xsl:text>,</xsl:text>         
@@ -367,7 +411,7 @@
           </xsl:call-template>
         </xsl:if>
       </xsl:otherwise>
-    </xsl:choose><xsl:text>)</xsl:text>
+    </xsl:choose>
   </xsl:template>
   <xsl:template name="element-children">
     <xsl:param name="children" select="*[not(self::jsx:import) and not(self::jsx:style) and not(self::jsx:attribute) and not(self::jsx:else) and not(self::jsx:elif)]|text()[string-length(normalize-space(.))>0]" />
@@ -409,7 +453,7 @@
   <xsl:template match="*[@jsx:value]">
     <xsl:choose>
       <xsl:when test="@jsx:map">
-        <xsl:text>        console.error("jsx:value attribute used along jsx:map. Tranform the jsx:value to a child node")
+        <xsl:text>        console.error("jsx:value attribute used along jsx:map. Transform the jsx:value to a child node")
         </xsl:text>
       </xsl:when>
       <xsl:when test="count(*|text())>0">
@@ -573,7 +617,9 @@
     <xsl:text>&#x000A;</xsl:text>
   </xsl:template>
   <xsl:template name="helpers">
-        var _mergeAttributes = function(a,b) { var res = (b||[]).reduce(function(r,v){ if (v) { var k=v.name; if (k === "style") { r[k] = r[k] || {}; Object.assign(r[k], v.value); } else if (v.add) { r[k] = r[k] ? r[k] + ' ' + v.value : v.value; } else { r[k] = v.value; } } return r; }, a || {}); console.log("RES", res); return res; }; var _parseStyle = function(style){ var n = document.createElement("div"); n.setAttribute("style", style); var res = {}; for (var i=0 ; i&lt;n.style.length ; i++) { var k  = n.style[i]; var p  = k.split("-").map(function(v,i){return i == 0 ? v : v[0].toUpperCase() + v.substring(1)}).join(""); res[p] = n.style[k]; } return res; };
+        /** * Merges the attributes list `b` `[{name,value,add:bool}]` * into the attribute map `a` `{
+    <name />    :
+    <value>Any</value>    }`, with * a special handling of style attributes. */ var _mergeAttributes = function(a,b) { var r = {}; Object.assign(r,a || {}); var res = (b||[]).reduce(function(r,v){ if (v) { var k=v.name; if (k === "style") { r[k] = r[k] || {}; Object.assign(r[k], v.value); } else if (v.add) { r[k] = r[k] ? r[k] + ' ' + v.value : v.value; } else { r[k] = v.value; } } return r; }, r); return res; }; /** * Parses the given CSS line into a style attribute map. */ var _parseStyle = function(style){ var n = document.createElement("div"); n.setAttribute("style", style); var res = {}; for (var i=0 ; i&lt;n.style.length ; i++) { var k  = n.style[i]; var p  = k.split("-").map(function(v,i){return i == 0 ? v : v[0].toUpperCase() + v.substring(1)}).join(""); res[p] = n.style[k]; } return res; }; /** * Flattens at one level the list argument starting after the `skip`ed * element */ var __flatten = function(list,skip){ skip = skip || 0; var res = list.reduce(function(r,e,i){ if (i &lt; skip) { r.push(e); } else if (e instanceof Array) { r = r.concat(e); } else { r.push(e); } return r; }, []); return res; }
   </xsl:template>
   <xsl:template name="umd-postamble">  });
   </xsl:template>

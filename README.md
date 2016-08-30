@@ -244,7 +244,9 @@ Loops over the values defined in `EXPRESSION`, assigning each item to `NAME` (`_
 #### <a _html="true" name="jsx:if"/>
 `<jsx:if test>`
 
-Only applies the nodes below if the condition is true
+Only applies the nodes below if the condition is true.
+
+> Note: > > Currently, `jsx:if` cannot be used directly within a `jsx:Component` > node. In this case, you should use the `@jsx:if` attribute variant.
 
 ```html
 <jsx:if test="state.items.length &gt 0">
@@ -255,6 +257,19 @@ Only applies the nodes below if the condition is true
 <jsx:else>
     No items.
 </jsx:else>
+```
+
+#### <a _html="true" name="@jsx:if"/>
+`@jsx:if=EXPRESSION`
+
+The current node will be only output when the `test` _expression_ evaluates to true through `(!(!(expression))`.
+
+```html
+<ul class="items">
+    <li class="message" jsx:if="data.items.length">
+       This list is empty.
+    </li>
+</div>
 ```
 
 #### <a _html="true" name="jsx:value"/>
@@ -272,9 +287,9 @@ Sets/adds the attribute with the given `name` when the given condition is true.
  - `do` is optional and can be either `set` or `add`, defining whether the attribute value is to be reset of expanded (useful for `class`).
 
 
-The content of the `<jsx:attribute>` element is the `{}`-expression or text value to be used.
+The content of the `<jsx:attribute>` is a JavaScript expression that returns the content.
 
-<blockquote><div class='content'><ul class=''list> <jsx:attribute name="class" when="items.length==0" do=''add>empty</jsx:attribute> ‥
+<blockquote><div class='content'><ul class=''list> <jsx:attribute name="class" when="items.length==0" do="add''>'empty'</jsx:attribute> ‥
 
 </div></blockquote>#### <a _html="true" name="jsx:style"/>
 `<jsx:style name= when=>`

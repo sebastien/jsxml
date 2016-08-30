@@ -22,7 +22,15 @@
 
 
     /* Imported components */
+
+
+    /** * Merges the attributes list `b` `[{name,value,add:bool}]` * into the attribute map `a` `{
+     * :
+     * Any    }`, with * a special handling of style attributes. */
     var _mergeAttributes = function (a, b) {
+            var r = {};
+
+            Object.assign(r, a || {});
             var res = (b || []).reduce(function (r, v) {
                     if (v) {
                         var k = v.name;
@@ -38,13 +46,13 @@
                     }
 
                     return r;
-                }, a || {});
-
-            console.log("RES", res);
+                }, r);
 
             return res;
         };
 
+
+    /** * Parses the given CSS line into a style attribute map. */
     var _parseStyle = function (style) {
             var n = document.createElement("div");
 
@@ -64,7 +72,26 @@
             return res;
         };
 
-    var STYLES = {};
+
+    /** * Flattens at one level the list argument starting after the `skip`ed * element */
+    var __flatten = function (list, skip) {
+            skip = skip || 0;
+            var res = list.reduce(function (r, e, i) {
+                    if (i < skip) {
+                        r.push(e);
+                    } else if (e instanceof Array) {
+                        r = r.concat(e);
+                    } else {
+                        r.push(e);
+                    }
+
+                    return r;
+                }, []);
+
+            return res;
+        }
+
+        var STYLES = {};
 
 
     /* View */
